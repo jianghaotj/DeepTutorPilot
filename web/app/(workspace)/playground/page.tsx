@@ -28,6 +28,12 @@ import AssistantResponse from "@/components/common/AssistantResponse";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import ProcessLogs from "@/components/common/ProcessLogs";
 import ResearchConfigPanel from "@/components/research/ResearchConfigPanel";
+import {
+  getCapabilityDescriptionKey,
+  getCapabilityLabelKey,
+  getToolDescriptionKey,
+  getToolLabelKey,
+} from "@/lib/frontend-i18n";
 import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import { listKnowledgeBases } from "@/lib/knowledge-api";
 import type { StreamEvent } from "@/lib/unified-ws";
@@ -62,15 +68,6 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
   paper_search: FileSearch,
 };
 
-const TOOL_LABELS: Record<string, string> = {
-  brainstorm: "Brainstorm",
-  rag: "RAG",
-  web_search: "Web Search",
-  code_execution: "Code Execution",
-  reason: "Reason",
-  paper_search: "Arxiv Search",
-};
-
 const RESEARCH_SOURCE_OPTIONS: Array<{ name: ResearchSource; label: string; icon: LucideIcon }> = [
   { name: "kb", label: "Knowledge Base", icon: Database },
   { name: "web", label: "Web", icon: Globe },
@@ -84,27 +81,12 @@ const CAPABILITY_ICONS: Record<string, LucideIcon> = {
   deep_research: Microscope,
 };
 
-const CAPABILITY_LABELS: Record<string, string> = {
-  chat: "Chat",
-  deep_solve: "Deep Solve",
-  deep_question: "Quiz Generation",
-  deep_research: "Deep Research",
-};
-
 function getToolIcon(name: string): LucideIcon {
   return TOOL_ICONS[name] ?? Terminal;
 }
 
 function getCapIcon(name: string): LucideIcon {
   return CAPABILITY_ICONS[name] ?? Sparkles;
-}
-
-function getToolLabel(name: string): string {
-  return TOOL_LABELS[name] ?? titleCase(name);
-}
-
-function getCapabilityLabel(name: string): string {
-  return CAPABILITY_LABELS[name] ?? titleCase(name);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1435,7 +1417,7 @@ function CapabilityTester({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           rows={2}
-          placeholder={`${t("Try")} ${t(getCapabilityLabel(capability.name))}...`}
+          placeholder={`${t("Try")} ${t(getCapabilityLabelKey(capability.name))}...`}
           className="w-full resize-none bg-transparent text-[13px] leading-relaxed text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
         />
         <div className="mt-2 flex justify-end">
@@ -1649,11 +1631,15 @@ export default function PlaygroundPage() {
                         <div className="flex items-center gap-1.5">
                           <Icon size={13} strokeWidth={1.7} />
                           <span className="text-[13px] font-medium">
-                            {activeKind === "tool" ? t(getToolLabel(item.name)) : t(getCapabilityLabel(item.name))}
+                            {activeKind === "tool" ? t(getToolLabelKey(item.name)) : t(getCapabilityLabelKey(item.name))}
                           </span>
                         </div>
                         <div className={`mt-0.5 line-clamp-2 text-[11px] leading-relaxed ${activeName === item.name ? "text-[var(--primary-foreground)]/70" : "text-[var(--muted-foreground)]"}`}>
-                          {item.description}
+                          {t(
+                            activeKind === "tool"
+                              ? getToolDescriptionKey(item.name) ?? item.description
+                              : getCapabilityDescriptionKey(item.name) ?? item.description,
+                          )}
                         </div>
                       </button>
                     );
@@ -1672,9 +1658,9 @@ export default function PlaygroundPage() {
                           <ToolIcon size={13} strokeWidth={1.7} />
                           {t("Tool")}
                         </div>
-                        <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--foreground)]">{t(getToolLabel(activeTool.name))}</h2>
+                        <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--foreground)]">{t(getToolLabelKey(activeTool.name))}</h2>
                         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--muted-foreground)]">
-                          {activeTool.description}
+                          {t(getToolDescriptionKey(activeTool.name) ?? activeTool.description)}
                         </p>
                       </div>
 
@@ -1692,9 +1678,9 @@ export default function PlaygroundPage() {
                           <CapIcon size={13} strokeWidth={1.7} />
                           {t("Capability")}
                         </div>
-                        <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--foreground)]">{t(getCapabilityLabel(activeCapability.name))}</h2>
+                        <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--foreground)]">{t(getCapabilityLabelKey(activeCapability.name))}</h2>
                         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--muted-foreground)]">
-                          {activeCapability.description}
+                          {t(getCapabilityDescriptionKey(activeCapability.name) ?? activeCapability.description)}
                         </p>
                       </div>
 
@@ -1716,7 +1702,7 @@ export default function PlaygroundPage() {
                                   }`}
                                 >
                                   <TIcon size={11} strokeWidth={1.7} />
-                                  {t(getToolLabel(tool))}
+                                  {t(getToolLabelKey(tool))}
                                 </button>
                               );
                             })}

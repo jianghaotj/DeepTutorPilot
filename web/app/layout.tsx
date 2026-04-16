@@ -32,7 +32,10 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body className="font-sans bg-[var(--background)] text-[var(--foreground)]">
+      <body
+        suppressHydrationWarning
+        className="font-sans bg-[var(--background)] text-[var(--foreground)]"
+      >
         <AppShellProvider>
           <I18nClientBridge>
             {children}

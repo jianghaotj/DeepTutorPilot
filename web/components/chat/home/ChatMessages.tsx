@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import type { SelectedHistorySession } from "@/components/chat/HistorySessionPicker";
 import AssistantResponse from "@/components/common/AssistantResponse";
 import type { MessageRequestSnapshot } from "@/context/UnifiedChatContext";
+import { getCapabilityLabelKey } from "@/lib/frontend-i18n";
 import { extractMathAnimatorResult } from "@/lib/math-animator-types";
 import { extractQuizQuestions } from "@/lib/quiz-types";
 import { extractVisualizeResult } from "@/lib/visualize-types";
@@ -58,14 +59,8 @@ interface NotebookReferenceGroup {
   count: number;
 }
 
-function getModeBadgeLabel(capability?: string | null) {
-  if (!capability || capability === "chat") return "Chat";
-  if (capability === "deep_solve") return "Deep Solve";
-  if (capability === "deep_question") return "Quiz Generation";
-  if (capability === "deep_research") return "Deep Research";
-  if (capability === "math_animator") return "Math Animator";
-  if (capability === "visualize") return "Visualize";
-  return capability;
+function getModeBadgeLabelKey(capability?: string | null) {
+  return getCapabilityLabelKey(capability || "chat");
 }
 
 const AssistantMessage = memo(function AssistantMessage({
@@ -217,7 +212,7 @@ const UserMessage = memo(function UserMessage({
       <div className="max-w-[75%] space-y-1.5">
         <div className="flex justify-end pr-1">
           <span className="text-[10px] tracking-wide text-[var(--muted-foreground)]">
-            {getModeBadgeLabel(msg.capability)}
+            {t(getModeBadgeLabelKey(msg.capability))}
           </span>
         </div>
         {msg.attachments?.some((a) => a.type === "image") && (
