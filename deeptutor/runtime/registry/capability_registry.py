@@ -1,9 +1,4 @@
-"""
-Capability Registry
-===================
-
-Central registry for all capabilities (built-in and plugin).
-"""
+"""Capability registry for the unified runtime."""
 
 from __future__ import annotations
 
@@ -23,18 +18,6 @@ def _import_capability_class(path: str) -> type[BaseCapability]:
     return getattr(module, class_name)
 
 
-def _load_plugin_hooks():
-    try:
-        module = importlib.import_module("deeptutor.plugins.loader")
-    except Exception:
-        logger.debug("Plugin loader unavailable; skipping plugin discovery.", exc_info=True)
-        return None, None
-    return (
-        getattr(module, "discover_plugins", None),
-        getattr(module, "load_plugin_capability", None),
-    )
-
-
 class CapabilityRegistry:
     """Registry of available capabilities."""
 
@@ -43,7 +26,6 @@ class CapabilityRegistry:
 
     def register(self, capability: BaseCapability) -> None:
         self._capabilities[capability.name] = capability
-        logger.debug("Registered capability: %s", capability.name)
 
     def load_builtins(self) -> None:
         for name, class_path in BUILTIN_CAPABILITY_CLASSES.items():
@@ -56,25 +38,8 @@ class CapabilityRegistry:
                 logger.warning("Failed to load capability %s", name, exc_info=True)
 
     def load_plugins(self) -> None:
-        discover_plugins, load_plugin_capability = _load_plugin_hooks()
-        if discover_plugins is None or load_plugin_capability is None:
-            return
-
-        for manifest in discover_plugins():
-            if manifest.name in self._capabilities:
-                continue
-            if manifest.entry.endswith("tool.py"):
-                continue
-            try:
-                capability = load_plugin_capability(manifest)
-                if capability is not None:
-                    self.register(capability)
-            except Exception:
-                logger.warning(
-                    "Failed to load plugin capability %s",
-                    manifest.name,
-                    exc_info=True,
-                )
+        """Legacy hook retained as a no-op while the runtime is built-in only."""
+        return
 
     def get(self, name: str) -> BaseCapability | None:
         return self._capabilities.get(name)

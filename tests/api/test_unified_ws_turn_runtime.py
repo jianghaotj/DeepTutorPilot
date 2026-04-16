@@ -300,6 +300,93 @@ async def test_turn_runtime_persists_deep_research_session_preference(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("requested_capability", "expected_capability"),
+    [
+        (None, "chat"),
+        ("deep_solve", "deep_solve"),
+        ("deep_question", "deep_question"),
+    ],
+)
+async def test_turn_runtime_routes_supported_capabilities_via_unified_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    requested_capability: str | None,
+    expected_capability: str,
+) -> None:
+    store = SQLiteSessionStore(tmp_path / "chat_history.db")
+    runtime = TurnRuntimeManager(store)
+    captured: dict[str, object] = {}
+
+    class FakeContextBuilder:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        async def build(self, **_kwargs):
+            return SimpleNamespace(
+                conversation_history=[],
+                conversation_summary="",
+                context_text="",
+                token_count=0,
+                budget=0,
+            )
+
+    class FakeOrchestrator:
+        async def handle(self, context):
+            captured["active_capability"] = context.active_capability
+            captured["user_message"] = context.user_message
+            yield StreamEvent(
+                type=StreamEventType.CONTENT,
+                source=context.active_capability or "chat",
+                stage="responding",
+                content=f"{context.active_capability or 'chat'} response",
+                metadata={"call_kind": "llm_final_response"},
+            )
+            yield StreamEvent(
+                type=StreamEventType.DONE,
+                source=context.active_capability or "chat",
+            )
+
+    monkeypatch.setattr("deeptutor.services.llm.config.get_llm_config", lambda: SimpleNamespace())
+    monkeypatch.setattr("deeptutor.services.session.context_builder.ContextBuilder", FakeContextBuilder)
+    monkeypatch.setattr("deeptutor.runtime.orchestrator.ChatOrchestrator", FakeOrchestrator)
+    monkeypatch.setattr(
+        "deeptutor.services.memory.get_memory_service",
+        lambda: SimpleNamespace(
+            build_memory_context=lambda: "",
+            refresh_from_turn=_noop_refresh,
+        ),
+    )
+
+    session, turn = await runtime.start_turn(
+        {
+            "type": "start_turn",
+            "content": "run capability",
+            "session_id": None,
+            "capability": requested_capability,
+            "tools": ["rag"],
+            "knowledge_bases": ["demo-kb"],
+            "attachments": [],
+            "language": "en",
+            "config": {},
+        }
+    )
+
+    events = []
+    async for event in runtime.subscribe_turn(turn["id"], after_seq=0):
+        events.append(event)
+
+    assert [event["type"] for event in events] == ["session", "content", "done"]
+    assert captured["active_capability"] == expected_capability
+    assert captured["user_message"] == "run capability"
+
+    detail = await store.get_session_with_messages(session["id"])
+    assert detail is not None
+    assert detail["preferences"]["capability"] == expected_capability
+    assert detail["messages"][1]["content"] == f"{expected_capability} response"
+
+
+@pytest.mark.asyncio
 async def test_turn_runtime_injects_memory_and_refreshes_after_completion(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,

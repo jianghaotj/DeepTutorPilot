@@ -36,7 +36,7 @@ export function apiUrl(path: string): string {
 
 /**
  * Construct a WebSocket URL from a path
- * @param path - WebSocket path (e.g., '/api/v1/solve')
+ * @param path - WebSocket path (e.g., '/api/v1/ws')
  * @returns WebSocket URL (e.g., 'ws://localhost:8001/api/v1/ws')
  */
 export function wsUrl(path: string): string {

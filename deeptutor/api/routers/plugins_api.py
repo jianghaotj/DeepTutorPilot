@@ -1,10 +1,4 @@
-"""
-Plugins API Router
-==================
-
-Lists registered tools, capabilities, and playground plugins.
-Provides direct tool execution for the Playground tester.
-"""
+"""Playground discovery and tool execution endpoints."""
 
 import asyncio
 import contextlib
@@ -28,15 +22,6 @@ router = APIRouter()
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 
-def _discover_plugins() -> list[Any]:
-    try:
-        from deeptutor.plugins.loader import discover_plugins
-    except Exception:
-        logger.debug("Plugin loader unavailable; returning no plugins.", exc_info=True)
-        return []
-    return discover_plugins()
-
-
 class ToolExecuteRequest(BaseModel):
     params: dict[str, Any] = {}
 
@@ -54,7 +39,6 @@ class CapabilityExecuteRequest(BaseModel):
 async def list_plugins():
     tool_registry = get_tool_registry()
     capability_registry = get_capability_registry()
-    plugin_manifests = _discover_plugins()
 
     tools = [
         {
@@ -77,22 +61,10 @@ async def list_plugins():
 
     capabilities = capability_registry.get_manifests()
 
-    plugins = [
-        {
-            "name": plugin.name,
-            "type": plugin.type,
-            "description": plugin.description,
-            "stages": plugin.stages,
-            "version": plugin.version,
-            "author": plugin.author,
-        }
-        for plugin in plugin_manifests
-    ]
-
     return {
         "tools": tools,
         "capabilities": capabilities,
-        "plugins": plugins,
+        "plugins": [],
     }
 
 

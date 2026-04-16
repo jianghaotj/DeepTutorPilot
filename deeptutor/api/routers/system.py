@@ -32,8 +32,8 @@ async def get_runtime_topology():
     Describe the current execution topology.
 
     This makes the unified runtime explicit for operators and frontend code:
-    interactive chat turns should prefer `/api/v1/ws`, while a few routers still
-    exist as compatibility or isolated subsystem endpoints.
+    interactive turns should use `/api/v1/ws`, while a few independent
+    subsystems keep their own transports.
     """
     return {
         "primary_runtime": {
@@ -44,12 +44,7 @@ async def get_runtime_topology():
             "capability_entry": "CapabilityRegistry",
             "tool_entry": "ToolRegistry",
         },
-        "compatibility_routes": [
-            {"router": "chat", "mode": "legacy_adapter_target"},
-            {"router": "solve", "mode": "legacy_adapter_target"},
-            {"router": "question", "mode": "legacy_specialized"},
-            {"router": "research", "mode": "legacy_specialized"},
-        ],
+        "compatibility_routes": [],
         "isolated_subsystems": [
             {"router": "guide", "mode": "independent_subsystem"},
             {"router": "co_writer", "mode": "independent_subsystem"},
