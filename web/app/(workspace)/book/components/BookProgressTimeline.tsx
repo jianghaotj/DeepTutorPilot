@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import {
   Check,
   Loader2,
@@ -30,6 +31,40 @@ const STAGE_ICONS: Record<StageId, React.ComponentType<{ className?: string }>> 
   overview: BookMarked,
   compilation: LayoutList,
 };
+
+const STAGE_COPY: Record<StageId, { labelKey: string; descriptionKey: string }> = {
+  ideation: {
+    labelKey: "Ideation",
+    descriptionKey: "Drafting the proposal from your inputs.",
+  },
+  exploration: {
+    labelKey: "Source sweep",
+    descriptionKey: "Parallel multi-query retrieval across your KBs.",
+  },
+  synthesis: {
+    labelKey: "Synthesis",
+    descriptionKey: "Spine + concept graph (draft → revise).",
+  },
+  critique: {
+    labelKey: "Critique",
+    descriptionKey: "Self-review rounds tightening the spine.",
+  },
+  overview: {
+    labelKey: "Overview chapter",
+    descriptionKey: "Auto-built table of contents + concept map.",
+  },
+  compilation: {
+    labelKey: "Compilation",
+    descriptionKey: "Per-page block planning + generation.",
+  },
+};
+
+const STATE_LABELS = {
+  pending: "Pending",
+  running: "Running",
+  completed: "Completed",
+  error: "Error",
+} as const;
 
 // State → tailwind tokens. Uses theme css vars so it follows light/dark mode.
 const STATE_TONE = {
@@ -86,12 +121,37 @@ function StageIcon({
   return <Icon className={cls} />;
 }
 
+function localizedStageLabel(
+  id: StageId,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  return t(STAGE_COPY[id].labelKey);
+}
+
+function localizedStageDescription(
+  id: StageId,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  return t(STAGE_COPY[id].descriptionKey);
+}
+
+function localizedText(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  fallback: string | undefined,
+  key?: string,
+  params?: Record<string, string | number>,
+): string {
+  if (key) return t(key, params);
+  return fallback || "";
+}
+
 export default function BookProgressTimeline({
   progress,
   compact = false,
   mini = false,
   className = "",
 }: BookProgressTimelineProps) {
+  const { t } = useTranslation();
   const { ordered, stages, message } = progress;
   const fraction = stageProgressFraction(progress);
   const activeStage =
@@ -100,13 +160,26 @@ export default function BookProgressTimeline({
     ordered[0];
   const activeView = stages[activeStage];
   const counters = collectCounters(progress);
+  const activeLabel = localizedStageLabel(activeStage, t);
+  const activeDetail = localizedText(
+    t,
+    activeView.detail,
+    activeView.detailKey,
+    activeView.detailParams,
+  );
+  const messageText = localizedText(
+    t,
+    message,
+    progress.messageKey,
+    progress.messageParams,
+  );
 
   // ── Mini mode: thin floating chip (top-right) ───────────────────────
   if (mini) {
     const allDone = fraction >= 1;
-    const tooltip = `${activeView.label}${
-      activeView.detail ? ` · ${activeView.detail}` : ""
-    }${message && message !== activeView.label ? ` · ${message}` : ""}`;
+    const tooltip = `${activeLabel}${
+      activeDetail ? ` · ${activeDetail}` : ""
+    }${messageText && messageText !== activeLabel ? ` · ${messageText}` : ""}`;
     return (
       <div
         className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)]/90 px-2.5 py-1 text-[11px] shadow-sm backdrop-blur ${className}`}
@@ -128,7 +201,7 @@ export default function BookProgressTimeline({
             return (
               <span
                 key={id}
-                title={`${stages[id].label} · ${s}`}
+                title={`${localizedStageLabel(id, t)} · ${t(STATE_LABELS[s])}`}
                 className={`relative z-10 inline-flex h-3 w-3 items-center justify-center rounded-full ring-1 ${tone.ring} ${tone.bg}`}
               >
                 {s === "running" && (
@@ -145,7 +218,7 @@ export default function BookProgressTimeline({
           })}
         </div>
         <span className="max-w-[160px] truncate text-[10.5px] text-[var(--muted-foreground)]">
-          {activeView.label}
+          {activeLabel}
         </span>
         <span className="tabular-nums text-[10px] font-medium text-[var(--muted-foreground)]">
           {Math.round(fraction * 100)}%
@@ -158,7 +231,7 @@ export default function BookProgressTimeline({
     return (
       <div
         className={`flex items-center gap-3 ${className}`}
-        title={message || activeView.label}
+        title={messageText || activeLabel}
       >
         {/* Icon strip */}
         <div className="flex items-center gap-0.5">
@@ -168,7 +241,7 @@ export default function BookProgressTimeline({
             return (
               <span
                 key={id}
-                title={`${stages[id].label} · ${s}`}
+                title={`${localizedStageLabel(id, t)} · ${t(STATE_LABELS[s])}`}
                 className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${tone.bg} ${tone.fg}`}
               >
                 <StageIcon id={id} state={s} />
@@ -180,13 +253,13 @@ export default function BookProgressTimeline({
         {/* Live caption */}
         <div className="min-w-0 flex-1 truncate text-[11px] text-[var(--muted-foreground)]">
           <span className="font-medium text-[var(--foreground)]">
-            {activeView.label}
+            {activeLabel}
           </span>
-          {activeView.detail && (
-            <span className="ml-1.5 opacity-70">· {activeView.detail}</span>
+          {activeDetail && (
+            <span className="ml-1.5 opacity-70">· {activeDetail}</span>
           )}
-          {message && message !== activeView.label && (
-            <span className="ml-1.5 opacity-70">· {message}</span>
+          {messageText && messageText !== activeLabel && (
+            <span className="ml-1.5 opacity-70">· {messageText}</span>
           )}
         </div>
       </div>
@@ -207,19 +280,19 @@ export default function BookProgressTimeline({
                   fraction < 1 ? "animate-spin" : "opacity-0"
                 }`}
               />
-              Generating book
+              {t("Generating book")}
             </div>
             <div className="mt-0.5 truncate text-sm font-medium text-[var(--foreground)]">
-              {activeView.label}
-              {activeView.detail && (
+              {activeLabel}
+              {activeDetail && (
                 <span className="ml-1.5 text-[12px] font-normal text-[var(--muted-foreground)]">
-                  · {activeView.detail}
+                  · {activeDetail}
                 </span>
               )}
             </div>
-            {message && message !== activeView.label && (
+            {messageText && messageText !== activeLabel && (
               <div className="mt-0.5 truncate text-[11px] text-[var(--muted-foreground)]">
-                {message}
+                {messageText}
               </div>
             )}
           </div>
@@ -247,7 +320,7 @@ export default function BookProgressTimeline({
             return (
               <div
                 key={id}
-                title={`${stage.label} — ${stage.description}`}
+                title={`${localizedStageLabel(id, t)} — ${localizedStageDescription(id, t)}`}
                 className={`group relative flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 ring-1 transition-all ${
                   isActive
                     ? `${tone.bg} ${tone.ring}`
@@ -263,7 +336,7 @@ export default function BookProgressTimeline({
                   <div
                     className={`truncate text-[11px] font-medium ${tone.fg}`}
                   >
-                    {stage.label}
+                    {localizedStageLabel(id, t)}
                   </div>
                 </div>
               </div>
@@ -275,13 +348,13 @@ export default function BookProgressTimeline({
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border)] pt-2.5 text-[11px]">
             {counters.map((item) => (
               <div
-                key={item.label}
+                key={item.labelKey}
                 className="inline-flex items-baseline gap-1 text-[var(--muted-foreground)]"
               >
                 <span className="font-semibold tabular-nums text-[var(--foreground)]">
                   {item.value}
                 </span>
-                <span className="opacity-80">{item.label}</span>
+                <span className="opacity-80">{t(item.labelKey)}</span>
               </div>
             ))}
           </div>
@@ -293,38 +366,38 @@ export default function BookProgressTimeline({
 
 function collectCounters(
   progress: BookProgress,
-): { label: string; value: string | number }[] {
-  const items: { label: string; value: string | number }[] = [];
+): { labelKey: string; value: string | number }[] {
+  const items: { labelKey: string; value: string | number }[] = [];
   if (progress.exploration.queryCount > 0) {
-    items.push({ label: "queries", value: progress.exploration.queryCount });
+    items.push({ labelKey: "queries", value: progress.exploration.queryCount });
   }
   if (progress.exploration.chunkCount > 0) {
-    items.push({ label: "chunks", value: progress.exploration.chunkCount });
+    items.push({ labelKey: "chunks", value: progress.exploration.chunkCount });
   }
   if (progress.synthesis.chapterCount > 0) {
-    items.push({ label: "chapters", value: progress.synthesis.chapterCount });
+    items.push({ labelKey: "chapters", value: progress.synthesis.chapterCount });
   }
   if (progress.synthesis.conceptNodes > 0) {
     items.push({
-      label: "concepts",
+      labelKey: "concepts / relations",
       value: `${progress.synthesis.conceptNodes}/${progress.synthesis.conceptEdges}`,
     });
   }
   if (progress.compilation.blocksReady > 0) {
     items.push({
-      label: "blocks ready",
+      labelKey: "blocks ready",
       value: progress.compilation.blocksReady,
     });
   }
   if (progress.compilation.pagesReady > 0) {
     items.push({
-      label: "pages ready",
+      labelKey: "pages ready",
       value: progress.compilation.pagesReady,
     });
   }
   if (progress.compilation.blocksError > 0) {
     items.push({
-      label: "block errors",
+      labelKey: "block errors",
       value: progress.compilation.blocksError,
     });
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+
 import VisualizationViewer from "@/components/visualize/VisualizationViewer";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import type { Block } from "@/lib/book-types";
@@ -10,6 +12,7 @@ export interface InteractiveBlockProps {
 }
 
 export default function InteractiveBlock({ block }: InteractiveBlockProps) {
+  const { t } = useTranslation();
   const code =
     (block.payload?.code as { language?: string; content?: string } | undefined) ||
     {};
@@ -24,7 +27,7 @@ export default function InteractiveBlock({ block }: InteractiveBlockProps) {
   if (!content.trim()) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)]/40 p-4 text-xs italic text-[var(--muted-foreground)]">
-        (Interactive payload is empty)
+        {t("(Interactive payload is empty)")}
       </div>
     );
   }

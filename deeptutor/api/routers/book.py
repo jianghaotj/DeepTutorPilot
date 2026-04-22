@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
+from deeptutor.api.utils.localization import http_error, localize, localize_known_text
 from deeptutor.book import (
     BlockType,
     BookProposal,
@@ -145,7 +146,7 @@ async def get_book(book_id: str) -> dict[str, Any]:
     engine = get_book_engine()
     book = engine.load_book(book_id)
     if book is None:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise http_error(404, "book_not_found")
     spine = engine.load_spine(book_id)
     pages = engine.list_pages(book_id)
     progress = engine.load_progress(book_id)
@@ -162,7 +163,7 @@ async def get_spine(book_id: str) -> dict[str, Any]:
     engine = get_book_engine()
     spine = engine.load_spine(book_id)
     if spine is None:
-        raise HTTPException(status_code=404, detail="Spine not found")
+        raise http_error(404, "spine_not_found")
     return {"spine": spine.model_dump(mode="json")}
 
 
@@ -171,7 +172,7 @@ async def get_page(book_id: str, page_id: str) -> dict[str, Any]:
     engine = get_book_engine()
     page = engine.load_page(book_id, page_id)
     if page is None:
-        raise HTTPException(status_code=404, detail="Page not found")
+        raise http_error(404, "page_not_found")
     return {"page": page.model_dump(mode="json")}
 
 
@@ -180,7 +181,7 @@ async def delete_book(book_id: str) -> dict[str, Any]:
     engine = get_book_engine()
     ok = engine.delete_book(book_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise http_error(404, "book_not_found")
     return {"deleted": True, "book_id": book_id}
 
 
@@ -188,7 +189,7 @@ async def delete_book(book_id: str) -> dict[str, Any]:
 async def create_book(req: CreateBookRequest) -> dict[str, Any]:
     """Stage 1: capture inputs + run IdeationAgent."""
     if not req.user_intent.strip():
-        raise HTTPException(status_code=400, detail="user_intent is required")
+        raise http_error(400, "user_intent_required")
     engine = get_book_engine()
     try:
         book, proposal = await engine.create_book(
@@ -219,13 +220,16 @@ async def confirm_proposal(req: ConfirmProposalRequest) -> dict[str, Any]:
         try:
             edited = BookProposal.model_validate(req.proposal)
         except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Invalid proposal: {exc}")
+            raise HTTPException(
+                status_code=400,
+                detail=localize("invalid_proposal", error=str(exc)),
+            )
     try:
         book, spine = await engine.confirm_proposal(
             book_id=req.book_id, edited_proposal=edited
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=localize_known_text(str(exc)))
     except Exception as exc:  # noqa: BLE001
         logger.error(f"confirm_proposal failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -244,7 +248,10 @@ async def confirm_spine(req: ConfirmSpineRequest) -> dict[str, Any]:
         try:
             edited = Spine.model_validate(req.spine)
         except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Invalid spine: {exc}")
+            raise HTTPException(
+                status_code=400,
+                detail=localize("invalid_spine", error=str(exc)),
+            )
     try:
         pages = await engine.confirm_spine(
             book_id=req.book_id,
@@ -252,7 +259,7 @@ async def confirm_spine(req: ConfirmSpineRequest) -> dict[str, Any]:
             auto_compile=req.auto_compile,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=localize_known_text(str(exc)))
     except Exception as exc:  # noqa: BLE001
         logger.error(f"confirm_spine failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -268,7 +275,7 @@ async def compile_page(req: CompilePageRequest) -> dict[str, Any]:
             book_id=req.book_id, page_id=req.page_id, force=req.force
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=localize_known_text(str(exc)))
     except Exception as exc:  # noqa: BLE001
         logger.error(f"compile_page failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -289,7 +296,7 @@ async def regenerate_block(req: RegenerateBlockRequest) -> dict[str, Any]:
         logger.error(f"regenerate_block failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
     if block is None:
-        raise HTTPException(status_code=404, detail="Block not found")
+        raise http_error(404, "block_not_found")
     return {"block": block.model_dump(mode="json")}
 
 
@@ -297,14 +304,20 @@ def _coerce_block_type(name: str) -> BlockType:
     try:
         return BlockType(name)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Unknown block type: {name}") from exc
+        raise HTTPException(
+            status_code=400,
+            detail=localize("unknown_block_type", name=name),
+        ) from exc
 
 
 def _coerce_content_type(name: str) -> ContentType:
     try:
         return ContentType(name)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Unknown content type: {name}") from exc
+        raise HTTPException(
+            status_code=400,
+            detail=localize("unknown_content_type", name=name),
+        ) from exc
 
 
 @router.post("/books/insert-block")
@@ -324,7 +337,7 @@ async def insert_block(req: InsertBlockRequest) -> dict[str, Any]:
         logger.error(f"insert_block failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
     if block is None:
-        raise HTTPException(status_code=404, detail="Page or chapter not found")
+        raise http_error(404, "page_or_chapter_not_found")
     return {"block": block.model_dump(mode="json")}
 
 
@@ -335,7 +348,7 @@ async def delete_block(req: DeleteBlockRequest) -> dict[str, Any]:
         book_id=req.book_id, page_id=req.page_id, block_id=req.block_id
     )
     if not ok:
-        raise HTTPException(status_code=404, detail="Block not found")
+        raise http_error(404, "block_not_found")
     return {"ok": True}
 
 
@@ -349,7 +362,7 @@ async def move_block(req: MoveBlockRequest) -> dict[str, Any]:
         new_position=req.new_position,
     )
     if not ok:
-        raise HTTPException(status_code=404, detail="Block not found")
+        raise http_error(404, "block_not_found")
     return {"ok": True}
 
 
@@ -369,7 +382,7 @@ async def change_block_type(req: ChangeBlockTypeRequest) -> dict[str, Any]:
         logger.error(f"change_block_type failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
     if block is None:
-        raise HTTPException(status_code=404, detail="Block not found")
+        raise http_error(404, "block_not_found")
     return {"block": block.model_dump(mode="json")}
 
 
@@ -389,7 +402,7 @@ async def deep_dive(req: DeepDiveRequest) -> dict[str, Any]:
         logger.error(f"deep_dive failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
     if page is None:
-        raise HTTPException(status_code=404, detail="Parent page not found")
+        raise http_error(404, "parent_page_not_found")
     return {"page": page.model_dump(mode="json")}
 
 
@@ -420,7 +433,7 @@ async def refresh_fingerprints(book_id: str) -> dict[str, Any]:
     engine = get_book_engine()
     result = engine.refresh_kb_fingerprints(book_id)
     if result is None:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise http_error(404, "book_not_found")
     return result
 
 
@@ -437,7 +450,7 @@ async def supplement(req: SupplementRequest) -> dict[str, Any]:
         logger.error(f"supplement failed: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
     if block is None:
-        raise HTTPException(status_code=404, detail="Page not found")
+        raise http_error(404, "page_not_found")
     return {"block": block.model_dump(mode="json")}
 
 

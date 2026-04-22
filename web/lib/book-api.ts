@@ -23,7 +23,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       detail = res.statusText;
     }
-    throw new Error(`book api ${path} → ${res.status}: ${detail}`);
+    throw new Error(detail || res.statusText);
   }
   return (await res.json()) as T;
 }

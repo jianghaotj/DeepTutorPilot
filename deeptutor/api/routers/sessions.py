@@ -7,8 +7,9 @@ from __future__ import annotations
 import logging
 
 from pydantic import BaseModel, Field, field_validator
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from deeptutor.api.utils.localization import http_error
 from deeptutor.services.session import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ async def get_session(session_id: str):
     store = get_sqlite_session_store()
     session = await store.get_session_with_messages(session_id)
     if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     return session
 
 
@@ -88,7 +89,7 @@ async def rename_session(session_id: str, payload: SessionRenameRequest):
     store = get_sqlite_session_store()
     updated = await store.update_session_title(session_id, payload.title)
     if not updated:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     session = await store.get_session(session_id)
     return {"session": session}
 
@@ -98,18 +99,18 @@ async def delete_session(session_id: str):
     store = get_sqlite_session_store()
     deleted = await store.delete_session(session_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     return {"deleted": True, "session_id": session_id}
 
 
 @router.post("/{session_id}/quiz-results")
 async def record_quiz_results(session_id: str, payload: QuizResultsRequest):
     if not payload.answers:
-        raise HTTPException(status_code=400, detail="Quiz results are required")
+        raise http_error(400, "quiz_results_required")
     store = get_sqlite_session_store()
     session = await store.get_session(session_id)
     if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     content = _format_quiz_results_message(payload.answers)
     await store.add_message(
         session_id=session_id,

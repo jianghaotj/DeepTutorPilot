@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Block } from "@/lib/book-types";
 
 export interface PlaceholderBlockProps {
@@ -18,7 +19,8 @@ const LABELS: Record<string, string> = {
 };
 
 export default function PlaceholderBlock({ block }: PlaceholderBlockProps) {
-  const label = LABELS[block.type] || block.type;
+  const { t } = useTranslation();
+  const label = t(LABELS[block.type] || block.type);
   const intended = block.params?.intended_block_type
     ? String(block.params.intended_block_type)
     : block.type;
@@ -28,8 +30,10 @@ export default function PlaceholderBlock({ block }: PlaceholderBlockProps) {
       <div>
         <div className="font-medium text-[var(--foreground)]">{label}</div>
         <div className="text-xs">
-          Coming in Phase 2 – {intended} block will appear here once the
-          generator is wired.
+          {t(
+            "Coming in Phase 2 – {{type}} block will appear here once the generator is wired.",
+            { type: intended },
+          )}
         </div>
       </div>
     </div>

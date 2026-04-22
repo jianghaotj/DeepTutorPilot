@@ -79,21 +79,24 @@ function StatusIndicator({ status }: { status?: SessionRuntimeStatus }) {
   return null;
 }
 
-function groupLabel(timestamp: number): string {
+function groupLabel(
+  timestamp: number,
+  t: (key: string) => string,
+): string {
   const now = new Date();
   const date = new Date(timestamp * 1000);
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfItemDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const diffDays = Math.floor((startOfToday - startOfItemDay) / 86400000);
-  if (diffDays <= 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return "Last 7 days";
-  return "Earlier";
+  if (diffDays <= 0) return t("Today");
+  if (diffDays === 1) return t("Yesterday");
+  if (diffDays < 7) return t("Last 7 days");
+  return t("Earlier");
 }
 
-function relativeTime(timestamp: number): string {
+function relativeTime(timestamp: number, locale: string): string {
   const diffSeconds = Math.round(timestamp - Date.now() / 1000);
-  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   const abs = Math.abs(diffSeconds);
   if (abs < 60) return formatter.format(diffSeconds, "second");
   if (abs < 3600) return formatter.format(Math.round(diffSeconds / 60), "minute");
@@ -110,20 +113,23 @@ export default function SessionList({
   onRename,
   onDelete,
 }: SessionListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const locale = (i18n.resolvedLanguage || i18n.language || "en").startsWith("zh")
+    ? "zh-CN"
+    : "en";
 
   const grouped = useMemo(() => {
     const buckets = new Map<string, SessionSummary[]>();
     for (const session of sessions) {
-      const label = groupLabel(session.updated_at);
+      const label = groupLabel(session.updated_at, t);
       const current = buckets.get(label) ?? [];
       current.push(session);
       buckets.set(label, current);
     }
     return Array.from(buckets.entries());
-  }, [sessions]);
+  }, [sessions, t]);
 
   const startEdit = (session: SessionSummary) => {
     setEditingId(session.session_id);
@@ -225,7 +231,7 @@ export default function SessionList({
                     />
                   ) : (
                     <span className={`min-w-0 flex-1 truncate text-[13px] ${active ? "font-medium" : ""}`}>
-                      {session.title || "Untitled chat"}
+                      {session.title || t("Untitled chat")}
                     </span>
                   )}
                   <div className="flex shrink-0 items-center gap-px opacity-0 transition-opacity group-hover:opacity-100">
@@ -321,14 +327,14 @@ export default function SessionList({
                               active ? "font-medium" : "font-normal"
                             }`}
                           >
-                            {session.title || "Untitled chat"}
+                            {session.title || t("Untitled chat")}
                           </span>
                           <StatusIndicator status={session.status} />
                         </div>
                       )}
                       {!isEditing && (
                         <div className="mt-0.5 line-clamp-1 text-[11px] leading-tight text-[var(--muted-foreground)]">
-                          {session.last_message || relativeTime(session.updated_at)}
+                          {session.last_message || relativeTime(session.updated_at, locale)}
                         </div>
                       )}
                     </div>

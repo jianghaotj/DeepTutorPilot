@@ -2,8 +2,9 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from deeptutor.api.utils.localization import http_error, localize
 from deeptutor.services.session import get_sqlite_session_store
 
 router = APIRouter()
@@ -25,7 +26,7 @@ async def get_recent_activities(limit: int = 50, type: str | None = None):
                 "id": session.get("session_id"),
                 "type": activity_type,
                 "capability": capability,
-                "title": session.get("title", "Untitled"),
+                "title": session.get("title") or localize("untitled"),
                 "timestamp": session.get("updated_at", session.get("created_at", 0)),
                 "summary": (session.get("last_message") or "")[:160],
                 "session_ref": f"sessions/{session.get('session_id')}",
@@ -43,7 +44,7 @@ async def get_activity_entry(entry_id: str):
     store = get_sqlite_session_store()
     session = await store.get_session_with_messages(entry_id)
     if session is None:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
 
     capability = str(session.get("capability") or "chat")
     return {

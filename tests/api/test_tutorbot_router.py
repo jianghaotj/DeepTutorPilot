@@ -20,6 +20,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def _force_english_ui(monkeypatch):
+    localization_mod = importlib.import_module("deeptutor.api.utils.localization")
+    monkeypatch.setattr(localization_mod, "get_ui_language", lambda default="en": "en")
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

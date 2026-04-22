@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from deeptutor.agents.notebook import NotebookSummarizeAgent
+from deeptutor.api.utils.localization import http_error, localize
 from deeptutor.services.notebook import notebook_manager
 
 router = APIRouter()
@@ -196,7 +197,7 @@ async def get_notebook(notebook_id: str):
     try:
         notebook = notebook_manager.get_notebook(notebook_id)
         if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+            raise http_error(404, "notebook_not_found")
         return notebook
     except HTTPException:
         raise
@@ -225,7 +226,7 @@ async def update_notebook(notebook_id: str, request: UpdateNotebookRequest):
             icon=request.icon,
         )
         if not notebook:
-            raise HTTPException(status_code=404, detail="Notebook not found")
+            raise http_error(404, "notebook_not_found")
         return {"success": True, "notebook": notebook}
     except HTTPException:
         raise
@@ -247,8 +248,8 @@ async def delete_notebook(notebook_id: str):
     try:
         success = notebook_manager.delete_notebook(notebook_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Notebook not found")
-        return {"success": True, "message": "Notebook deleted successfully"}
+            raise http_error(404, "notebook_not_found")
+        return {"success": True, "message": localize("notebook_deleted_successfully")}
     except HTTPException:
         raise
     except Exception as e:
@@ -313,8 +314,8 @@ async def remove_record(notebook_id: str, record_id: str):
     try:
         success = notebook_manager.remove_record(notebook_id, record_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Record not found")
-        return {"success": True, "message": "Record removed successfully"}
+            raise http_error(404, "record_not_found")
+        return {"success": True, "message": localize("record_removed_successfully")}
     except HTTPException:
         raise
     except Exception as e:
@@ -336,7 +337,7 @@ async def update_record(notebook_id: str, record_id: str, request: UpdateRecordR
             kb_name=request.kb_name,
         )
         if not updated:
-            raise HTTPException(status_code=404, detail="Record not found")
+            raise http_error(404, "record_not_found")
         return {"success": True, "record": updated}
     except HTTPException:
         raise

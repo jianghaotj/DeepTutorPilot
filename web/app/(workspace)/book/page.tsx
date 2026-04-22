@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, MessageSquare } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { bookApi, openBookSocket } from "@/lib/book-api";
 import type {
@@ -33,6 +34,7 @@ import SpineEditor from "./components/SpineEditor";
 type View = "list" | "creator" | "spine" | "reader";
 
 export default function BookPage() {
+  const { t } = useTranslation();
   // `useSearchParams()` requires a Suspense boundary during static prerender
   // (Next.js CSR bailout). Wrap the actual page implementation here so the
   // production build (`next build`) doesn't fail prerendering `/book`.
@@ -40,7 +42,7 @@ export default function BookPage() {
     <Suspense
       fallback={
         <div className="flex h-screen w-full items-center justify-center text-[var(--muted-foreground)]">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("Loading…")}
         </div>
       }
     >
@@ -50,6 +52,7 @@ export default function BookPage() {
 }
 
 function BookPageInner() {
+  const { t } = useTranslation();
   const [books, setBooks] = useState<Book[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [view, setView] = useState<View>("list");
@@ -191,7 +194,7 @@ function BookPageInner() {
   }, [requestedBookId, selectedBookId, handleSelectBook]);
 
   const handleDeleteBook = async (id: string) => {
-    if (!confirm("Delete this book? This cannot be undone.")) return;
+    if (!confirm(t("Delete this book? This cannot be undone."))) return;
     await bookApi.delete(id);
     if (selectedBookId === id) {
       setSelectedBookId(null);
@@ -470,7 +473,7 @@ function BookPageInner() {
 
         {view === "spine" && !detail?.spine && (
           <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading spine…
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("Loading spine…")}
           </div>
         )}
         </div>
@@ -481,12 +484,13 @@ function BookPageInner() {
             className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] shadow-lg hover:opacity-90"
           >
             <MessageSquare className="h-4 w-4" />
-            Chat
+            {t("Chat")}
           </button>
         )}
 
         {view === "reader" && chatOpen && (
           <BookChatPanel
+            key={detail?.book?.id || "book-chat-panel"}
             book={detail?.book || null}
             page={selectedPage}
             open={chatOpen}

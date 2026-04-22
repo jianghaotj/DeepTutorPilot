@@ -10,6 +10,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ValidationError
 
+from deeptutor.api.utils.localization import http_error, localize
 from deeptutor.services.tutorbot import get_tutorbot_manager
 from deeptutor.services.tutorbot.manager import (
     BotConfig,
@@ -64,7 +65,7 @@ async def list_souls():
 async def create_soul(payload: SoulCreateRequest):
     mgr = get_tutorbot_manager()
     if mgr.get_soul(payload.id):
-        raise HTTPException(status_code=409, detail=f"Soul '{payload.id}' already exists")
+        raise HTTPException(status_code=409, detail=localize("soul_exists", id=payload.id))
     return mgr.create_soul(payload.id, payload.name, payload.content)
 
 
@@ -72,7 +73,7 @@ async def create_soul(payload: SoulCreateRequest):
 async def get_soul(soul_id: str):
     soul = get_tutorbot_manager().get_soul(soul_id)
     if not soul:
-        raise HTTPException(status_code=404, detail="Soul not found")
+        raise http_error(404, "soul_not_found")
     return soul
 
 
@@ -80,14 +81,14 @@ async def get_soul(soul_id: str):
 async def update_soul(soul_id: str, payload: SoulUpdateRequest):
     result = get_tutorbot_manager().update_soul(soul_id, payload.name, payload.content)
     if not result:
-        raise HTTPException(status_code=404, detail="Soul not found")
+        raise http_error(404, "soul_not_found")
     return result
 
 
 @router.delete("/souls/{soul_id}")
 async def delete_soul(soul_id: str):
     if not get_tutorbot_manager().delete_soul(soul_id):
-        raise HTTPException(status_code=404, detail="Soul not found")
+        raise http_error(404, "soul_not_found")
     return {"id": soul_id, "deleted": True}
 
 
@@ -202,14 +203,14 @@ async def get_bot(
     cfg = mgr.load_bot_config(bot_id)
     if cfg:
         return _stopped_bot_dict(bot_id, cfg, include_secrets=include_secrets)
-    raise HTTPException(status_code=404, detail="Bot not found")
+    raise http_error(404, "bot_not_found")
 
 
 @router.delete("/{bot_id}")
 async def stop_bot(bot_id: str):
     stopped = await get_tutorbot_manager().stop_bot(bot_id)
     if not stopped:
-        raise HTTPException(status_code=404, detail="Bot not found or not running")
+        raise http_error(404, "bot_not_found_or_not_running")
     return {"bot_id": bot_id, "stopped": True}
 
 
@@ -217,7 +218,7 @@ async def stop_bot(bot_id: str):
 async def destroy_bot(bot_id: str):
     destroyed = await get_tutorbot_manager().destroy_bot(bot_id)
     if not destroyed:
-        raise HTTPException(status_code=404, detail="Bot not found")
+        raise http_error(404, "bot_not_found")
     return {"bot_id": bot_id, "destroyed": True}
 
 
@@ -235,12 +236,12 @@ def _validate_channels_payload(channels: dict) -> None:
     except ValidationError as exc:
         raise HTTPException(
             status_code=422,
-            detail={"message": "Invalid channels config", "errors": exc.errors()},
+            detail={"message": localize("invalid_channels_config"), "errors": exc.errors()},
         ) from None
     except TypeError as exc:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid channels config: {exc}",
+            detail=localize("invalid_channels_config_with_reason", error=str(exc)),
         ) from None
 
 
@@ -276,9 +277,9 @@ async def update_bot(bot_id: str, payload: UpdateBotRequest):
                 logger.exception("reload_channels failed for bot '%s'", bot_id)
                 raise HTTPException(
                     status_code=500,
-                    detail=(
-                        "Channels saved but failed to restart listeners "
-                        f"({type(exc).__name__}); try stopping and starting the bot."
+                    detail=localize(
+                        "channels_saved_but_failed_to_restart",
+                        error_type=type(exc).__name__,
                     ),
                 ) from None
         # NOTE: response masks secrets — front-end should re-fetch with
@@ -287,7 +288,7 @@ async def update_bot(bot_id: str, payload: UpdateBotRequest):
 
     cfg = mgr.load_bot_config(bot_id)
     if not cfg:
-        raise HTTPException(status_code=404, detail="Bot not found")
+        raise http_error(404, "bot_not_found")
 
     _apply_payload(cfg, payload)
     mgr.save_bot_config(bot_id, cfg)
@@ -305,7 +306,10 @@ async def list_bot_files(bot_id: str):
 async def read_bot_file(bot_id: str, filename: str):
     content = get_tutorbot_manager().read_bot_file(bot_id, filename)
     if content is None:
-        raise HTTPException(status_code=400, detail=f"Not an editable file: {filename}")
+        raise HTTPException(
+            status_code=400,
+            detail=localize("not_editable_file", filename=filename),
+        )
     return {"filename": filename, "content": content}
 
 
@@ -313,7 +317,10 @@ async def read_bot_file(bot_id: str, filename: str):
 async def write_bot_file(bot_id: str, filename: str, payload: FileUpdateRequest):
     ok = get_tutorbot_manager().write_bot_file(bot_id, filename, payload.content)
     if not ok:
-        raise HTTPException(status_code=400, detail=f"Not an editable file: {filename}")
+        raise HTTPException(
+            status_code=400,
+            detail=localize("not_editable_file", filename=filename),
+        )
     return {"filename": filename, "saved": True}
 
 
@@ -332,7 +339,7 @@ async def bot_chat_ws(ws: WebSocket, bot_id: str):
     mgr = get_tutorbot_manager()
     instance = mgr.get_bot(bot_id)
     if not instance or not instance.running:
-        await ws.close(code=4004, reason="Bot not found or not running")
+        await ws.close(code=4004, reason=localize("bot_not_found_or_not_running"))
         return
 
     await ws.accept()

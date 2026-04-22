@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from deeptutor.api.utils.localization import http_error
 from deeptutor.logging import get_logger
 from deeptutor.services.path_service import get_path_service
 
@@ -40,7 +41,7 @@ class SafeOutputStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):
         if not self._path_service.is_public_output_path(path):
-            raise HTTPException(status_code=404, detail="Output not found")
+            raise http_error(404, "output_not_found")
         return await super().get_response(path, scope)
 
 

@@ -9,6 +9,7 @@ import time
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from deeptutor.api.utils.localization import localize
 from deeptutor.services.config import resolve_search_runtime_config
 from deeptutor.services.embedding import get_embedding_client, get_embedding_config
 from deeptutor.services.llm import complete as llm_complete
@@ -178,24 +179,28 @@ async def test_llm_connection():
         if response and len(response.strip()) > 0:
             return TestResponse(
                 success=True,
-                message="LLM connection successful",
+                message=localize("llm_connection_successful"),
                 model=model,
                 response_time_ms=round(response_time, 2),
             )
         return TestResponse(
             success=False,
-            message="LLM connection failed: Empty response",
+            message=localize("llm_connection_failed_empty_response"),
             model=model,
             error="Empty response from API",
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"LLM configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=localize("llm_configuration_error", error=str(e)),
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(
             success=False,
-            message=f"LLM connection failed: {e!s}",
+            message=localize("llm_connection_failed", error=str(e)),
             response_time_ms=round(response_time, 2),
             error=str(e),
         )
@@ -227,26 +232,30 @@ async def test_embeddings_connection():
         if embeddings is not None and len(embeddings) > 0 and len(embeddings[0]) > 0:
             return TestResponse(
                 success=True,
-                message=f"Embeddings connection successful ({binding} provider)",
+                message=localize(
+                    "embeddings_connection_successful_provider", provider=binding
+                ),
                 model=model,
                 response_time_ms=round(response_time, 2),
             )
         return TestResponse(
             success=False,
-            message="Embeddings connection failed: Empty response",
+            message=localize("embeddings_connection_failed_empty_response"),
             model=model,
             error="Empty embedding vector",
         )
 
     except ValueError as e:
         return TestResponse(
-            success=False, message=f"Embeddings configuration error: {e!s}", error=str(e)
+            success=False,
+            message=localize("embeddings_configuration_error", error=str(e)),
+            error=str(e),
         )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(
             success=False,
-            message=f"Embeddings connection failed: {e!s}",
+            message=localize("embeddings_connection_failed", error=str(e)),
             response_time_ms=round(response_time, 2),
             error=str(e),
         )
@@ -261,42 +270,55 @@ async def test_search_connection():
         if not search_config.requested_provider:
             return TestResponse(
                 success=False,
-                message="Search not configured",
+                message=localize("search_not_configured"),
                 error="Missing SEARCH_PROVIDER",
             )
         if search_config.unsupported_provider:
             return TestResponse(
                 success=False,
-                message=(
-                    f"Search provider `{search_config.requested_provider}` is deprecated/unsupported."
+                message=localize(
+                    "search_provider_unsupported",
+                    provider=search_config.requested_provider,
                 ),
                 error="Switch to brave/tavily/jina/searxng/duckduckgo/perplexity",
             )
         if search_config.missing_credentials:
             return TestResponse(
                 success=False,
-                message=f"Search provider `{search_config.requested_provider}` missing credentials.",
+                message=localize(
+                    "search_provider_missing_credentials",
+                    provider=search_config.requested_provider,
+                ),
                 error="Set profile.api_key or PERPLEXITY_API_KEY",
             )
         result = web_search("DeepTutor health check", provider=search_config.provider)
         response_time = (time.time() - start_time) * 1000
         answer = result.get("answer") or result.get("search_results")
         if not answer:
-            raise ValueError("Search provider returned no content")
+            return TestResponse(
+                success=False,
+                message=localize("search_provider_returned_no_content"),
+                response_time_ms=round(response_time, 2),
+                error="Search provider returned no content",
+            )
         return TestResponse(
             success=True,
-            message="Search connection successful",
+            message=localize("search_connection_successful"),
             model=search_config.provider,
             response_time_ms=round(response_time, 2),
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"Search configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=localize("search_configuration_error", error=str(e)),
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(
             success=False,
-            message=f"Search connection check failed: {e!s}",
+            message=localize("search_connection_check_failed", error=str(e)),
             response_time_ms=round(response_time, 2),
             error=str(e),
         )

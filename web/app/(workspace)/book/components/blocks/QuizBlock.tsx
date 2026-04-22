@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import type { Block } from "@/lib/book-types";
 
@@ -27,11 +28,12 @@ export interface QuizBlockProps {
 }
 
 export default function QuizBlock({ block, onAttempt }: QuizBlockProps) {
+  const { t } = useTranslation();
   const questions = (block.payload?.questions as QuizQuestion[] | undefined) || [];
   if (questions.length === 0) {
     return (
       <div className="text-sm text-[var(--muted-foreground)]">
-        No quiz questions generated.
+        {t("No quiz questions generated.")}
       </div>
     );
   }
@@ -39,7 +41,7 @@ export default function QuizBlock({ block, onAttempt }: QuizBlockProps) {
     <section>
       <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
         <span className="h-px flex-1 bg-[var(--primary)]/20" />
-        Quick Check
+        {t("Quick Check")}
         <span className="h-px flex-1 bg-[var(--primary)]/20" />
       </div>
       <div className="space-y-3">
@@ -65,6 +67,7 @@ function QuizQuestionCard({
   question: QuizQuestion;
   onAttempt?: (args: QuizAttemptArgs) => void;
 }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [reported, setReported] = useState(false);
@@ -73,22 +76,11 @@ function QuizQuestionCard({
   const correct = String(question.correct_answer || "").trim();
   const options = question.options || {};
 
-  useEffect(() => {
-    if (revealed && selected && !reported && onAttempt) {
-      onAttempt({
-        questionId: question.question_id,
-        userAnswer: selected,
-        isCorrect: selected === correct,
-      });
-      setReported(true);
-    }
-  }, [revealed, selected, reported, onAttempt, question.question_id, correct]);
-
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-medium text-[var(--foreground)]">
-          {index + 1}. {question.question || "(missing)"}
+          {index + 1}. {question.question || t("(missing)")}
         </div>
         {question.difficulty && (
           <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
@@ -106,7 +98,17 @@ function QuizQuestionCard({
             return (
               <button
                 key={key}
-                onClick={() => setSelected(key)}
+                onClick={() => {
+                  setSelected(key);
+                  if (revealed && !reported && onAttempt) {
+                    onAttempt({
+                      questionId: question.question_id,
+                      userAnswer: key,
+                      isCorrect: key === correct,
+                    });
+                    setReported(true);
+                  }
+                }}
                 className={`flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                   isCorrect
                     ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100"
@@ -130,14 +132,25 @@ function QuizQuestionCard({
       ) : (
         <div className="mt-2 text-xs text-[var(--muted-foreground)]">
           {question.question_type === "fill_in_blank"
-            ? "Think about your answer, then reveal the solution."
-            : "Open response — click reveal to see the model answer."}
+            ? t("Think about your answer, then reveal the solution.")
+            : t("Open response — click reveal to see the model answer.")}
         </div>
       )}
 
       <div className="mt-3 flex items-center justify-between gap-2">
         <button
-          onClick={() => setRevealed((v) => !v)}
+          onClick={() => {
+            const nextRevealed = !revealed;
+            setRevealed(nextRevealed);
+            if (nextRevealed && selected && !reported && onAttempt) {
+              onAttempt({
+                questionId: question.question_id,
+                userAnswer: selected,
+                isCorrect: selected === correct,
+              });
+              setReported(true);
+            }
+          }}
           className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-xs font-medium text-[var(--muted-foreground)] hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
         >
           {revealed ? (
@@ -145,11 +158,12 @@ function QuizQuestionCard({
           ) : (
             <Eye className="h-3.5 w-3.5" />
           )}
-          {revealed ? "Hide answer" : "Reveal answer"}
+          {revealed ? t("Hide answer") : t("Reveal answer")}
         </button>
         {revealed && correct && (
           <span className="text-xs text-[var(--muted-foreground)]">
-            Answer: <span className="font-mono text-[var(--foreground)]">{correct}</span>
+            {t("Answer:")}{" "}
+            <span className="font-mono text-[var(--foreground)]">{correct}</span>
           </span>
         )}
       </div>

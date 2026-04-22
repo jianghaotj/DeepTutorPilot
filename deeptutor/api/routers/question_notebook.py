@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from deeptutor.api.utils.localization import http_error, localize_known_text
 from deeptutor.services.session import get_sqlite_session_store
 
 logger = logging.getLogger(__name__)
@@ -88,10 +89,10 @@ async def upsert_single_entry(payload: UpsertEntryRequest):
     try:
         await store.upsert_notebook_entries(payload.session_id, [payload.model_dump()])
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=localize_known_text(str(e)))
     entry = await store.find_notebook_entry(payload.session_id, payload.question_id)
     if entry is None:
-        raise HTTPException(status_code=500, detail="Upsert failed")
+        raise http_error(500, "upsert_failed")
     return entry
 
 @router.get("/entries", response_model=NotebookEntryListResponse)
@@ -121,7 +122,7 @@ async def lookup_entry(session_id: str = Query(...), question_id: str = Query(..
     store = get_sqlite_session_store()
     entry = await store.find_notebook_entry(session_id, question_id)
     if entry is None:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
     return entry
 
 
@@ -130,7 +131,7 @@ async def get_entry(entry_id: int) -> NotebookEntryItem:
     store = get_sqlite_session_store()
     entry = await store.get_notebook_entry(entry_id)
     if entry is None:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
     return NotebookEntryItem(**entry)
 
 
@@ -139,10 +140,10 @@ async def update_entry(entry_id: int, payload: EntryUpdateRequest):
     store = get_sqlite_session_store()
     updates = payload.model_dump(exclude_none=True)
     if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise http_error(400, "no_fields_to_update")
     updated = await store.update_notebook_entry(entry_id, updates)
     if not updated:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
     return {"updated": True, "id": entry_id}
 
 
@@ -151,7 +152,7 @@ async def delete_entry(entry_id: int):
     store = get_sqlite_session_store()
     deleted = await store.delete_notebook_entry(entry_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
     return {"deleted": True, "id": entry_id}
 
 
@@ -162,10 +163,10 @@ async def add_entry_to_category(entry_id: int, payload: CategoryAddRequest):
     store = get_sqlite_session_store()
     entry = await store.get_notebook_entry(entry_id)
     if entry is None:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise http_error(404, "entry_not_found")
     ok = await store.add_entry_to_category(entry_id, payload.category_id)
     if not ok:
-        raise HTTPException(status_code=400, detail="Failed to add to category")
+        raise http_error(400, "failed_to_add_to_category")
     return {"added": True, "entry_id": entry_id, "category_id": payload.category_id}
 
 
@@ -174,7 +175,7 @@ async def remove_entry_from_category(entry_id: int, category_id: int):
     store = get_sqlite_session_store()
     removed = await store.remove_entry_from_category(entry_id, category_id)
     if not removed:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise http_error(404, "link_not_found")
     return {"removed": True, "entry_id": entry_id, "category_id": category_id}
 
 
@@ -192,7 +193,7 @@ async def create_category(payload: CategoryCreateRequest):
     try:
         return await store.create_category(payload.name)
     except Exception:
-        raise HTTPException(status_code=409, detail="Category name already exists")
+        raise http_error(409, "category_name_exists")
 
 
 @router.patch("/categories/{category_id}")
@@ -200,7 +201,7 @@ async def rename_category(category_id: int, payload: CategoryRenameRequest):
     store = get_sqlite_session_store()
     updated = await store.rename_category(category_id, payload.name)
     if not updated:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise http_error(404, "category_not_found")
     return {"updated": True, "id": category_id, "name": payload.name}
 
 
@@ -209,5 +210,5 @@ async def delete_category(category_id: int):
     store = get_sqlite_session_store()
     deleted = await store.delete_category(category_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise http_error(404, "category_not_found")
     return {"deleted": True, "id": category_id}

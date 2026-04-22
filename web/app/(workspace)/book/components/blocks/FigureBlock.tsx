@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+
 import VisualizationViewer from "@/components/visualize/VisualizationViewer";
 import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import type { Block } from "@/lib/book-types";
@@ -25,6 +27,7 @@ function coerceRenderType(value: unknown, language: string): VisualizeRenderType
 }
 
 export default function FigureBlock({ block }: FigureBlockProps) {
+  const { t } = useTranslation();
   const code =
     (block.payload?.code as { language?: string; content?: string } | undefined) ||
     {};
@@ -40,7 +43,7 @@ export default function FigureBlock({ block }: FigureBlockProps) {
   if (!content.trim()) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)]/40 p-4 text-xs italic text-[var(--muted-foreground)]">
-        (Figure payload is empty)
+        {t("(Figure payload is empty)")}
       </div>
     );
   }

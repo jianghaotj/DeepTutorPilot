@@ -30,6 +30,8 @@ export interface StageView {
   description: string;
   state: StageState;
   detail?: string;
+  detailKey?: string;
+  detailParams?: Record<string, string | number>;
   startedAt?: number;
   endedAt?: number;
 }
@@ -64,6 +66,8 @@ export interface BookProgress {
   };
   // Latest progress message — useful as a single-line live caption.
   message: string;
+  messageKey?: string;
+  messageParams?: Record<string, string | number>;
   updatedAt: number;
 }
 
@@ -221,7 +225,12 @@ export function reduceBookEvent(
 
   // Generic progress message for the live caption.
   if (eventType === "progress" && typeof event.content === "string") {
-    next = { ...next, message: event.content as string };
+    next = {
+      ...next,
+      message: event.content as string,
+      messageKey: undefined,
+      messageParams: undefined,
+    };
   }
 
   // Book-specific kinds.
@@ -229,7 +238,12 @@ export function reduceBookEvent(
     case "proposal_ready": {
       next = startStage(next, "ideation");
       next = completeStage(next, "ideation");
-      next = { ...next, message: "Proposal ready" };
+      next = {
+        ...next,
+        message: "Proposal ready",
+        messageKey: "Proposal ready",
+        messageParams: undefined,
+      };
       break;
     }
     case "exploration_ready": {
@@ -248,10 +262,14 @@ export function reduceBookEvent(
           candidateConcepts: asNumber(meta.candidate_concepts),
           summary: asString(meta.summary).slice(0, 220),
         },
-        message: `Source sweep done — ${queries} queries, ${chunkCount} chunks`,
+        message: `Source sweep done — queries: ${queries}, chunks: ${chunkCount}`,
+        messageKey: "Source sweep done — queries: {{queries}}, chunks: {{chunks}}",
+        messageParams: { queries, chunks: chunkCount },
       };
       next = patchStage(next, "exploration", {
-        detail: `${queries} queries · ${chunkCount} chunks`,
+        detail: `queries: ${queries} · chunks: ${chunkCount}`,
+        detailKey: "queries: {{queries}} · chunks: {{chunks}}",
+        detailParams: { queries, chunks: chunkCount },
       });
       break;
     }
@@ -272,9 +290,12 @@ export function reduceBookEvent(
           },
         };
         next = patchStage(next, "critique", {
-          detail: `${next.critique.rounds} round${
-            next.critique.rounds === 1 ? "" : "s"
-          } · ${issueCount} issue${issueCount === 1 ? "" : "s"}`,
+          detail: `rounds: ${next.critique.rounds} · issues: ${issueCount}`,
+          detailKey: "rounds: {{rounds}} · issues: {{issues}}",
+          detailParams: {
+            rounds: next.critique.rounds,
+            issues: issueCount,
+          },
         });
       } else {
         next = {
@@ -287,16 +308,21 @@ export function reduceBookEvent(
           },
         };
         next = patchStage(next, "synthesis", {
-          detail: `${next.synthesis.rounds} round${
-            next.synthesis.rounds === 1 ? "" : "s"
-          } · ${next.synthesis.chapterCount || 0} chapter${
-            next.synthesis.chapterCount === 1 ? "" : "s"
+          detail: `rounds: ${next.synthesis.rounds} · chapters: ${
+            next.synthesis.chapterCount || 0
           }`,
+          detailKey: "rounds: {{rounds}} · chapters: {{chapters}}",
+          detailParams: {
+            rounds: next.synthesis.rounds,
+            chapters: next.synthesis.chapterCount || 0,
+          },
         });
       }
       next = {
         ...next,
-        message: `${round}${verdict ? ` · ${verdict}` : ""}`,
+        message: verdict,
+        messageKey: undefined,
+        messageParams: undefined,
       };
       break;
     }
@@ -320,10 +346,14 @@ export function reduceBookEvent(
           conceptNodes: nodes,
           conceptEdges: edges,
         },
-        message: `Spine ready — ${chapterCount} chapters · ${nodes} concepts`,
+        message: `Spine ready — chapters: ${chapterCount}, concepts: ${nodes}`,
+        messageKey: "Spine ready — chapters: {{chapters}}, concepts: {{concepts}}",
+        messageParams: { chapters: chapterCount, concepts: nodes },
       };
       next = patchStage(next, "synthesis", {
-        detail: `${chapterCount} chapters · ${nodes} concepts`,
+        detail: `chapters: ${chapterCount} · concepts: ${nodes}`,
+        detailKey: "chapters: {{chapters}} · concepts: {{concepts}}",
+        detailParams: { chapters: chapterCount, concepts: nodes },
       });
       break;
     }
@@ -372,9 +402,12 @@ export function reduceBookEvent(
         },
       };
       next = patchStage(next, "compilation", {
-        detail: `${next.compilation.pagesReady} page${
-          next.compilation.pagesReady === 1 ? "" : "s"
-        } · ${next.compilation.blocksReady} blocks`,
+        detail: `pages: ${next.compilation.pagesReady} · blocks: ${next.compilation.blocksReady}`,
+        detailKey: "pages: {{pages}} · blocks: {{blocks}}",
+        detailParams: {
+          pages: next.compilation.pagesReady,
+          blocks: next.compilation.blocksReady,
+        },
       });
       // Treat the overview as completed once the very first page is ready —
       // the engine pre-materialises the overview before any normal page
@@ -394,7 +427,12 @@ export function reduceBookEvent(
     }
     case "compilation_complete": {
       next = completeStage(next, "compilation");
-      next = { ...next, message: "Book compilation complete" };
+      next = {
+        ...next,
+        message: "Book compilation complete",
+        messageKey: "Book compilation complete",
+        messageParams: undefined,
+      };
       break;
     }
     default:
@@ -410,6 +448,8 @@ export function reduceBookEvent(
       next = patchStage(next, running, {
         state: "error",
         detail: asString(event.content) || "error",
+        detailKey: asString(event.content) ? undefined : "Error",
+        detailParams: undefined,
       });
     }
   }

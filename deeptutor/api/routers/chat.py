@@ -6,9 +6,10 @@ WebSocket endpoint for lightweight chat with session management.
 REST endpoints for session operations.
 """
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from deeptutor.agents.chat import ChatAgent, SessionManager
+from deeptutor.api.utils.localization import http_error
 from deeptutor.logging import get_logger
 from deeptutor.services.config import PROJECT_ROOT, load_config_with_main
 from deeptutor.services.llm.config import get_llm_config
@@ -57,7 +58,7 @@ async def get_session(session_id: str):
     """
     session = session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     return session
 
 
@@ -74,7 +75,7 @@ async def delete_session(session_id: str):
     """
     if session_manager.delete_session(session_id):
         return {"status": "deleted", "session_id": session_id}
-    raise HTTPException(status_code=404, detail="Session not found")
+    raise http_error(404, "session_not_found")
 
 
 # =============================================================================

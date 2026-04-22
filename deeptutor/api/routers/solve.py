@@ -9,9 +9,10 @@ import asyncio
 import re
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from deeptutor.agents.solve import MainSolver, SolverSessionManager
+from deeptutor.api.utils.localization import http_error
 from deeptutor.api.utils.log_interceptor import LogInterceptor
 from deeptutor.capabilities.deep_solve import DeepSolveCapability
 from deeptutor.api.utils.task_id_manager import TaskIDManager
@@ -65,7 +66,7 @@ async def get_solver_session(session_id: str):
     """
     session = solver_session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise http_error(404, "session_not_found")
     return session
 
 
@@ -82,7 +83,7 @@ async def delete_solver_session(session_id: str):
     """
     if solver_session_manager.delete_session(session_id):
         return {"status": "deleted", "session_id": session_id}
-    raise HTTPException(status_code=404, detail="Session not found")
+    raise http_error(404, "session_not_found")
 
 
 # =============================================================================

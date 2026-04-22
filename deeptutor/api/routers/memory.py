@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from deeptutor.api.utils.localization import http_error, localize
 from deeptutor.services.memory import MemoryFile, get_memory_service
 from deeptutor.services.session import get_sqlite_session_store
 
@@ -46,7 +47,10 @@ async def get_memory():
 @router.put("")
 async def update_memory(payload: FileUpdateRequest):
     if payload.file not in _VALID_FILES:
-        raise HTTPException(status_code=400, detail=f"Invalid file: {payload.file}")
+        raise HTTPException(
+            status_code=400,
+            detail=localize("invalid_file", file=payload.file),
+        )
     snap = get_memory_service().write_file(payload.file, payload.content)
     return {**_snap_dict(snap), "saved": True}
 
@@ -58,7 +62,7 @@ async def refresh_memory(payload: MemoryRefreshRequest):
     if session_id:
         session = await store.get_session(session_id)
         if session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise http_error(404, "session_not_found")
 
     result = await get_memory_service().refresh_from_session(
         session_id or None,
@@ -73,7 +77,7 @@ async def clear_memory(payload: MemoryClearRequest | None = None):
     svc = get_memory_service()
     target = payload.file if payload else None
     if target and target not in _VALID_FILES:
-        raise HTTPException(status_code=400, detail=f"Invalid file: {target}")
+        raise HTTPException(status_code=400, detail=localize("invalid_file", file=target))
 
     if target:
         snap = svc.clear_file(target)
